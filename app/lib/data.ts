@@ -4,13 +4,14 @@ import {
   CustomersTableType,
   InvoiceForm,
   InvoicesTable,
+  LatestInvoice,
   LatestInvoiceRaw,
   Revenue,
 } from './definitions';
 import { formatCurrency } from './utils';
-
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
-
+import {invoices, revenue, customers} from 'app/lib/placeholder-data'
+// const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
+/*
 export async function fetchRevenue() {
   try {
     // Artificially delay a response for demo purposes.
@@ -29,7 +30,17 @@ export async function fetchRevenue() {
     throw new Error('Failed to fetch revenue data.');
   }
 }
+*/
+export async function fetchRevenue() {
+  try {
+    const data = revenue;
+    return data;
+  } catch (error) {    
+    throw new Error('Failed to fetch revenue data.');
+  }
+}
 
+/*
 export async function fetchLatestInvoices() {
   try {
     const data = await sql<LatestInvoiceRaw[]>`
@@ -46,6 +57,33 @@ export async function fetchLatestInvoices() {
     return latestInvoices;
   } catch (error) {
     console.error('Database Error:', error);
+    throw new Error('Failed to fetch the latest invoices.');
+  }
+}
+*/
+
+export async function fetchLatestInvoices() {
+  try {
+    const latestInvoices: LatestInvoice[] = invoices
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // order by date desc
+  .slice(0, 5) // limit 5
+  .map((invoice) => {
+    const customer = customers.find((c) => c.id === invoice.customer_id);
+    if (!customer) throw new Error(`Customer not found for id: ${invoice.customer_id}`);
+
+    return {
+      id: customer.id,
+      customer_id: invoice.customer_id,
+      amount: formatCurrency(invoice.amount),
+      status: invoice.status,
+      date: invoice.date,
+      name: customer.name,
+      email: customer.email,
+      image_url: customer.image_url,
+    };
+  });
+    return latestInvoices;
+  } catch (error) {
     throw new Error('Failed to fetch the latest invoices.');
   }
 }
