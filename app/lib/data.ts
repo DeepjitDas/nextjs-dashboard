@@ -1,7 +1,9 @@
 import postgres from 'postgres';
 import {
+  Customer,
   CustomerField,
   CustomersTableType,
+  Invoice,
   InvoiceForm,
   InvoicesTable,
   LatestInvoice,
@@ -9,33 +11,17 @@ import {
   Revenue,
 } from './definitions';
 import { formatCurrency } from './utils';
-import {invoices, revenue, customers} from 'app/lib/placeholder-data'
-// const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
-/*
-export async function fetchRevenue() {
+import { customers, invoices } from './placeholder-data';
+
+export async function fetchRevenue(): Promise<Revenue[]> {
   try {
-    // Artificially delay a response for demo purposes.
-    // Don't do this in production :)
-
-    // console.log('Fetching revenue data...');
-    // await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    const data = await sql<Revenue[]>`SELECT * FROM revenue`;
-
-    // console.log('Data fetch completed after 3 seconds.');
-
-    return data;
+    const response = await fetch('http://localhost:42910/DataProvider/revenue');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    } 
+    return response.json();
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch revenue data.');
-  }
-}
-*/
-export async function fetchRevenue() {
-  try {
-    const data = revenue;
-    return data;
-  } catch (error) {    
+    console.error('Error fetching revenue data:', error);
     throw new Error('Failed to fetch revenue data.');
   }
 }
@@ -64,11 +50,28 @@ export async function fetchLatestInvoices() {
 
 export async function fetchLatestInvoices() {
   try {
-    const latestInvoices: LatestInvoice[] = invoices
+    const [invoicesResponse, customersResponse] = await Promise.all([
+      fetch('http://localhost:42910/DataProvider/latestInvoice'),
+      fetch('http://localhost:42910/DataProvider/customers'),
+    ]);
+
+    if (!invoicesResponse.ok) {
+      throw new Error(`HTTP error! status: ${invoicesResponse.status}`);
+    };
+
+    if (!customersResponse.ok) {
+      throw new Error(`HTTP error! status: ${customersResponse.status}`);
+    }
+
+    const customerList =await customersResponse.json() as Customer[];
+    const invoiceList = await invoicesResponse.json() as Invoice[];
+    
+
+    const latestInvoices: LatestInvoice[] = invoiceList
   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // order by date desc
   .slice(0, 5) // limit 5
   .map((invoice) => {
-    const customer = customers.find((c) => c.id === invoice.customer_id);
+    const customer = customerList.find((c) => c.id === invoice.customer_id);
     if (!customer) throw new Error(`Customer not found for id: ${invoice.customer_id}`);
 
     return {
@@ -84,6 +87,7 @@ export async function fetchLatestInvoices() {
   });
     return latestInvoices;
   } catch (error) {
+    console.log(error);
     throw new Error('Failed to fetch the latest invoices.');
   }
 }
